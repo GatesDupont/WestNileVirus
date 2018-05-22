@@ -3,7 +3,6 @@
 
 library(glmmADMB)
 library(glmmTMB)
-library(lme4)
 library(qpcR)
 
 #----Loading data----
@@ -44,4 +43,9 @@ models.aictab=models.aictab[order(models.aictab["deltaAIC"]),]
 View(models.aictab)
 
 # Top model == Zero-inflated negative binomial model with random effects
-#       From glmmADMB, although glmmTMB is more up to date.
+#       (From glmmADMB, although glmmTMB is more up to date.)
+
+#----Residuals Plot----
+pfwct.spdf = SpatialPointsDataFrame(coords=cbind(pfwct$long, pfwct$lat), data=pfwct, proj4string = CRS("+init=epsg:4326"))
+pfwct.spdf@data$resid = resid(glmmadmb.zi.nb.re)
+bubble(pfwct.spdf, zcol="resid", pch=20, main="Residuals from Top Model")
