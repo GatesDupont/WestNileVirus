@@ -42,3 +42,6 @@ models.weights = akaike.weights(models.aic$AIC)
 models.aictab = cbind(models.aic,models.weights)
 models.aictab=models.aictab[order(models.aictab["deltaAIC"]),]
 View(models.aictab)
+
+# Top model == Zero-inflated negative binomial model with random effects
+#       From glmmADMB, although glmmTMB is more up to date.
