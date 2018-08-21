@@ -6,9 +6,9 @@
 # http://www.ecography.org/sites/ecography.org/files/appendix/e7138.pdf
 
 #----Loading libraries----
-library(raster) #for focal calculations
-library(glmmADMB)
-library(qpcR)
+library(raster) # for focal calculations
+library(glmmADMB) # zero-inflated, mixed effects generalized linear model.
+library(qpcR) # for AIC model comparison
 
 #----Loading and prepping PFW data----
 pfw = read.csv("~/Desktop/WNV2/PFW_amecro_zerofill_landcover.csv")
