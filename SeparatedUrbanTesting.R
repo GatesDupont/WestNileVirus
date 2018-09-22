@@ -4,6 +4,8 @@
 
 library(glmmADMB)
 library(qpcR)
+library(ggplot2)
+library(dplyr)
 
 #----Loading the pfw data----
 pfw = read.csv('~/Desktop/WNV2/PFW_amecro_zerofill_landcover.csv')
@@ -31,3 +33,44 @@ glm.U = glmmadmb(maxFlock~effortDays+effortHours+lat+long+yr+(1|locID), data=one
 #----Exploring models----
 summary(glm.nU) # 1.1% decline by yr, sig p val ||| 1.9% decline with re
 summary(glm.U) # 3.6% decline by yr, sig p val ||| 2.6% decline with re
+
+#----NON-URBAN model prediction----
+# Create a testing set
+testing.nU = data.frame(
+    long = mean(pfw$long),
+    lat = mean(pfw$lat),
+    locID = "L28176",
+    yr = years,
+    effortDays = 4,
+    effortHours = 4)
+
+# Calling predict
+predictions.nU = predict(
+  glm.nU,
+  newdata = testing.nU, interval= "confidence", exclude=c("locID")) 
+predictions.nU = data.frame(year = years, fit = predictions.nU$fit, group = "Non-Urban")
+
+#----URBAN model prediction----
+# Create a testing set
+testing.U = data.frame(
+  long = mean(pfw$long),
+  lat = mean(pfw$lat),
+  locID = "L28176",
+  yr = years,
+  effortDays = 4,
+  effortHours = 4)
+
+# Calling predict
+predictions.U = predict(
+  glm.U,
+  newdata = testing.U, interval= "confidence", exclude=c("locID"))
+predictions.U = data.frame(year = years, fit = predictions.U$fit, group="Urban")
+
+#----Aggregating predictions----
+predictions = rbind(predictions.nU, predictions.U)
+
+#----Plotting linear models----
+predictions %>%
+  ggplot(aes(x=year, y=fit, colour=group)) +
+  geom_line(size=1.1) + ylim(0,1) +
+  scale_color_manual(values=c("black", "red"))
