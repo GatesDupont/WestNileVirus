@@ -48,7 +48,7 @@ testing.nU = data.frame(
 predictions.nU = predict(
   glm.nU,
   newdata = testing.nU, interval= "confidence", exclude=c("locID")) 
-predictions.nU = data.frame(year = years, fit = predictions.nU$fit, group = "Non-Urban")
+predictions.nU = data.frame(Year = years, Fit = predictions.nU$fit, Habitat = "Non-urban")
 
 #----URBAN model prediction----
 # Create a testing set
@@ -64,13 +64,23 @@ testing.U = data.frame(
 predictions.U = predict(
   glm.U,
   newdata = testing.U, interval= "confidence", exclude=c("locID"))
-predictions.U = data.frame(year = years, fit = predictions.U$fit, group="Urban")
+predictions.U = data.frame(Year = years, Fit = predictions.U$fit, Habitat="Urban")
 
 #----Aggregating predictions----
 predictions = rbind(predictions.nU, predictions.U)
 
 #----Plotting linear models----
+#tiff("~/Desktop/lm_urban_AMCR_MA.tiff", width = 6, height = 5, units = 'in', res = 300, compression = 'rle')
 predictions %>%
-  ggplot(aes(x=year, y=fit, colour=group)) +
+  ggplot(aes(x=Year, y=Fit, colour=Habitat)) +
   geom_line(size=1.1) + ylim(0,1) +
-  scale_color_manual(values=c("black", "red"))
+  scale_color_manual(values=c("gray35", "darkorange2")) +
+  theme_light() + labs(title = "Abundance Trends", 
+                       subtitle="American Crow (Corvus brachyrhynchos), Massachusetts") +
+  theme(plot.title = element_text(hjust = 0.5, face="bold"), 
+        plot.subtitle = element_text(hjust = 0.5, face = "italic")) +
+  geom_text(x = 2002.5, y=0.55, colour = "gray35", angle = -10,
+            label = paste(" \u03b2 = -0.04, p = 0.013 *")) +
+  geom_text(x = 2002.5, y=0.34, colour = "darkorange2", angle=-23.5,
+            label = paste(" \u03b2 = -0.09, p = 4.9e-07 ***"))
+#dev.off()
