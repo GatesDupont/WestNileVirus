@@ -31,8 +31,8 @@ glm.U = glmmadmb(maxFlock~effortDays+effortHours+lat+long+yr+(1|locID), data=one
                  zeroInflation = T, family="nbinom")
 
 #----Exploring models----
-summary(glm.nU) # 1.1% decline by yr, sig p val ||| 1.9% decline with re
-summary(glm.U) # 3.6% decline by yr, sig p val ||| 2.6% decline with re
+summary(glm.nU) # For beta and p vals
+summary(glm.U)
 
 #----NON-URBAN model prediction----
 # Create a testing set
