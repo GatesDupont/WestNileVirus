@@ -31,10 +31,12 @@ ones = pfw[pfw$urban >= 0.6,]
 #----Running a glm for NON-URBAN----
 glm.nU = glmmadmb(maxFlock~effortDays+effortHours+lat+long+yr+(1|locID), data=zeros,
                   zeroInflation = T, family="nbinom")
+confint(object = glm.nU, parm = "yr",level = 0.95)
 
 #----Running a glm for URBAN----
 glm.U = glmmadmb(maxFlock~effortDays+effortHours+lat+long+yr+(1|locID), data=ones,
                  zeroInflation = T, family="nbinom")
+confint(object = glm.U, parm = "yr",level = 0.95)
 
 #----Exploring models----
 summary(glm.nU) # beta and p vals
