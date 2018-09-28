@@ -122,3 +122,26 @@ predictions %>%
   geom_text(x = 2001.5, y=-52, colour = "darkorange2", angle=-42,
             label = paste(" \u03b2 = -0.11, p = 2e-16 ***"))
 #dev.off()
+
+#----Plotting coefficients----
+df.nU = data.frame(confint(object = glm.nU, parm = "yr",level=0.95))
+df.U = data.frame(confint(object = glm.U, parm = "yr",level=0.95))
+df = rbind(df.nU, df.U)
+df$group = c("Non-urban", "Urban")
+df$coef = c(as.numeric(coef(glm.nU)["yr"]), as.numeric(coef(glm.U)["yr"]))
+df = df[,c(1,4,2,3)]
+colnames(df) = c("lower","coef","upper","group")
+
+ggplot(df, aes(as.factor(group), coef)) + 
+  theme_classic() + ylim(-0.125,0.005) +
+  ggtitle("Comparison of Regression Coefficients",
+          "American Crow abundance trend - Northeast U.S.") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"), 
+        plot.subtitle = element_text(hjust = 0.5, face="italic")) +
+  labs(y = "Coefficient for Year", x = "Habitat") +
+  geom_hline(yintercept = 0, linetype="dashed", color="gray") +
+  geom_label(label=c("No Change",""), color = "gray",
+             nudge_y = 0.0295, nudge_x = 0.51, label.size=NA, ) +
+  geom_point(color=c("#00BFC4","#F8766D"), lwd=2) + 
+  geom_errorbar(aes(ymin=lower, ymax=upper), lwd = 1.075,
+                width=0.125, color=c("#00BFC4","#F8766D"))
