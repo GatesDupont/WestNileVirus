@@ -1,107 +1,159 @@
+library(glmmADMB)
+
+
 # Gates Dupont #
 # Sept 2018    #
 # # # # # # # #
 
 library(glmmADMB)
 library(qpcR)
+library(ggplot2)
+library(dplyr)
 
-#----Loading the pfw data----
+#----Preparing the pfw data----
+# Load data
 pfw = read.csv('~/Desktop/WNV2/PFW_amecro_zerofill_landcover.csv')
-#pfw = pfw[pfw$state=="MA",]
+
+# Subsetting for states
+states = c("NY", "PA", "NJ", "CT", "RI", "MA")
+pfw = pfw[pfw$state %in% states,]
+
+# Subsetting for years
+years = 1999:2004
+pfw = pfw[pfw$yr %in% years,]
+
+#----Generating presence/absence variable----
+pfw$pa = 0L
+presence = pfw[pfw$maxFlock > 0,]
+absence = pfw[pfw$maxFlock == 0,]
+presence$pa = 1
+absence$pa = 0
+pfw=rbind(presence, absence)
 
 #----Converting habitat to binary for urban/not-urban----
 # Making a new column in the df
 pfw$urban = pfw$URB
 
 # Separating by urban value
-zeros = pfw[pfw$urban < 0.5,]
-ones = pfw[pfw$urban >= 0.5,]
+zeros = pfw[pfw$urban <= 0.4,]
+ones = pfw[pfw$urban >= 0.6,]
 
-# Transforming to binry
-zeros$urban = 0
-ones$urban = 1
+#----Running a glm for NON-URBAN----
+glm.nU = glmmadmb(maxFlock~effortDays+effortHours+lat+long+yr+(1|locID), data=zeros,
+                  zeroInflation = T, family="nbinom")
+confint(object = glm.nU, parm = "yr",level=0.95)
+#         2.5 %      97.5 %
+# yr -0.0438829 -0.01430744
 
-# Recombining the data
-pfw = rbind(zeros, ones)
+#----Running a glm for URBAN----
+glm.U = glmmadmb(maxFlock~effortDays+effortHours+lat+long+yr+(1|locID), data=ones,
+                 zeroInflation = T, family="nbinom")
+confint(object = glm.U, parm = "yr",level=0.95)
 
-#----Running a glm----
+#----Plotting year coefficients----
+df.nU = data.frame(confint(object = glm.nU, parm = "yr",level=0.95))
+df.U = data.frame(confint(object = glm.U, parm = "yr",level=0.95))
+df = rbind(df.nU, df.U)
+df$group = c("Non-urban", "Urban")
+df$coef = c(as.numeric(coef(glm.nU)["yr"]), as.numeric(coef(glm.U)["yr"]))
+df = df[,c(1,4,2,3)]
+colnames(df) = c("lower","coef","upper","group")
 
-# No random effects to start.
-glm.zi.nb.add = glmmadmb(maxFlock~effortDays+effortHours+lat+long+yr+urban, data=pfw,
-                         zeroInflation = T, family="nbinom")
-glm.zi.nb.col = glmmadmb(maxFlock~effortDays+effortHours+lat+long+yr:urban, data=pfw,
-                         zeroInflation = T, family="nbinom")
-glm.zi.nb.ast = glmmadmb(maxFlock~effortDays+effortHours+lat+long+yr*urban, data=pfw,
-                         zeroInflation = T, family="nbinom")
+ggplot(df, aes(as.factor(group), coef)) + 
+  theme_classic() + ylim(-0.125,0.005) +
+  ggtitle("Comparison of Regression Coefficients",
+          "American Crow abundance trend - Northeast U.S.") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"), 
+        plot.subtitle = element_text(hjust = 0.5, face="italic")) +
+  labs(y = "Coefficient for Year", x = "Habitat") +
+  geom_hline(yintercept = 0, linetype="dashed", color="gray") +
+  geom_label(label=c("No Change",""), color = "gray",
+             nudge_y = 0.0295, nudge_x = 0.51, label.size=NA, ) +
+  geom_point(color=c("#00BFC4","#F8766D"), lwd=2) + 
+  geom_errorbar(aes(ymin=lower, ymax=upper), lwd = 1.075,
+                width=0.125, color=c("#00BFC4","#F8766D"))
 
-# Model summary
-summary(glm.zi.nb.add)
-summary(glm.zi.nb.col)
-summary(glm.zi.nb.ast)
+#----Exploring models----
+summary(glm.nU) # beta and p vals
+summary(glm.U)
 
-#----Full model comparison table----
-models.aic = AIC(glm.zi.nb.add, glm.zi.nb.col, glm.zi.nb.ast)
-models.weights = akaike.weights(models.aic$AIC)
-models.aictab = cbind(models.aic,models.weights)
-models.aictab=models.aictab[order(models.aictab["deltaAIC"]),]
-View(models.aictab)
-
-#----Generating model predictions from the top model----
+#----NON-URBAN model prediction----
 # Create a testing set
-testing = rbind(
-  data.frame(
-    long = mean(pfw$long),
-    lat = mean(pfw$lat),
-    locID = "L28176",
-    yr = 1996:2017,
-    effortDays = 4,
-    effortHours = 4,
-    urban = 0
-  ),
-  data.frame(
-    long = mean(pfw$long),
-    lat = mean(pfw$lat),
-    locID = "L28176",
-    yr = 1996:2017,
-    effortDays = 4,
-    effortHours = 4,
-    urban = 1
-  )
-)
+testing.nU = data.frame(
+  long = mean(pfw$long),
+  lat = mean(pfw$lat),
+  locID = "L28176",
+  yr = years,
+  effortDays = 4,
+  effortHours = 4)
 
 # Calling predict
-predictions = predict(
-  glm.zi.nb.ast,
-  newdata = testing, interval= "confidence", se.fit = TRUE, 
-  exclude=c("locID")) 
+predictions.nU = predict(
+  glm.nU,
+  newdata = testing.nU, interval= "confidence", exclude=c("locID")) 
+predictions.nU = data.frame(Year = years, Fit = predictions.nU$fit, Habitat = "Non-urban")
 
-# Adding year and error columns
-predictions = data.frame(fit = predictions$fit$fit, 
-                         se.fit = predictions$se.fit,
-                         year = c(1996:2017,1996:2017))
+# Percent decline
+Decline = c()
+for(i in 1:length(predictions.nU$Fit)){
+  Decline = c(Decline, predictions.nU$Fit[i]/predictions.nU$Fit[1])
+}
+predictions.nU$Decline = -100*(1-Decline)
 
-# Separating into urban (1) and non-ubran (0)
-predictions0 = predictions[1:22,]
-predictions1 = predictions[23:44,]
+#----URBAN model prediction----
+# Create a testing set
+testing.U = data.frame(
+  long = mean(pfw$long),
+  lat = mean(pfw$lat),
+  locID = "L28176",
+  yr = years,
+  effortDays = 4,
+  effortHours = 4)
 
-error_top0 = predictions0$fit+1.96*predictions0$se.fit
-error_bottom0 = predictions0$fit-1.96*predictions0$se.fit
+# Calling predict
+predictions.U = predict(
+  glm.U,
+  newdata = testing.U, interval= "confidence", exclude=c("locID"))
+predictions.U = data.frame(Year = years, Fit = predictions.U$fit, Habitat="Urban")
 
-error_top1 = predictions1$fit+1.96*predictions1$se.fit
-error_bottom1 = predictions1$fit-1.96*predictions1$se.fit
+# Percent decline
+Decline = c()
+for(i in 1:length(predictions.U$Fit)){
+  Decline = c(Decline, predictions.U$Fit[i]/predictions.U$Fit[1])
+}
+predictions.U$Decline = -100*(1-Decline)
 
-#----Plotting predictions----
-plot(predictions0$fit, type="l", lwd=1, col="red",
-     main = "Corvus Population Trends in MA", xlab="Year", ylab="Predicted Abundance",
-     frame=F, xaxt = "n", ylim=c(-40,40))
-axis(side=1, at=c(1,5,10,15,20,22), labels=c(1996,2000,2005,2010,2015,2017))
-#lines(error_top0 ~ c(1:22),lwd=2, col="blue")
-#lines(error_bottom0 ~ c(1:22),lwd=2, col="blue")
-polygon(c(1:22,rev(1:22)),
-        c(error_top0,rev(error_bottom0)),
-        col=rgb(1,0,0, 0.2), border=NA)
-lines(predictions1$fit, lwd=3, col="blue")
-polygon(c(1:22,rev(1:22)),
-        c(error_top1,rev(error_bottom1)),
-        col=rgb(0,0,1, 0.2), border=NA)
-legend("topright", legend=c("Urban", "Rural"), lty=1, lwd=2, col=c("red","blue"))
+#----Aggregating predictions----
+predictions = rbind(predictions.nU, predictions.U)
+
+#----Plotting linear models----
+#tiff("~/Desktop/lm_urban_AMCR_Northeast_FullFrame.tiff", width = 6, height = 5, units = 'in', res = 300, compression = 'rle')
+predictions %>%
+  ggplot(aes(x=Year, y=Fit, colour=Habitat)) +
+  geom_line(size=1.1) + ylim(0,0.6) +
+  scale_color_manual(values=c("gray35", "darkorange2")) +
+  theme_light() + labs(title = "Abundance Trends", 
+                       subtitle="American Crow (Corvus brachyrhynchos), Northeastern U.S.") +
+  theme(plot.title = element_text(hjust = 0.5, face="bold"), 
+        plot.subtitle = element_text(hjust = 0.5, face = "italic")) +
+  geom_text(x = 2001.5, y=0.15, colour = "gray35", angle = -12,
+            label = paste(" \u03b2 = -0.03, p = 1.2e-4 ***")) +
+  geom_text(x = 2001.5, y=0.345, colour = "darkorange2", angle=-41,
+            label = paste(" \u03b2 = -0.11, p = 2e-16 ***"))
+#dev.off()
+
+#----Plotting Linear Models Percent Decline----
+#tiff("~/Desktop/lm_urban_AMCR_Northeast_Percent", width = 6, height = 5, units = 'in', res = 300, compression = 'rle')
+predictions %>%
+  ggplot(aes(x=Year, y=Decline, colour=Habitat)) +
+  geom_line(size=1.1) + ylim(-100,0) +
+  scale_color_manual(values=c("gray35", "darkorange2")) +
+  theme_light() + labs(title = "Percent Abundance Trends", 
+                       subtitle="American Crow (Corvus brachyrhynchos), Northeastern U.S.") +
+  theme(plot.title = element_text(hjust = 0.5, face="bold"), 
+        plot.subtitle = element_text(hjust = 0.5, face = "italic")) +
+  geom_text(x = 2002.2, y=-32.5, colour = "gray35", angle = -28.5,
+            label = paste(" \u03b2 = -0.03, p = 1.2e-4 ***")) +
+  geom_text(x = 2001.5, y=-52, colour = "darkorange2", angle=-42,
+            label = paste(" \u03b2 = -0.11, p = 2e-16 ***"))
+#dev.off()
