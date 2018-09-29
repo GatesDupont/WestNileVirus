@@ -19,7 +19,7 @@ states = c("NY", "PA", "NJ", "CT", "RI", "MA")
 pfw = pfw[pfw$state %in% states,]
 
 # Subsetting for years
-years = 1999:2004
+years = 2007:2014
 pfw = pfw[pfw$yr %in% years,]
 
 #----Generating presence/absence variable----
@@ -39,16 +39,12 @@ zeros = pfw[pfw$urban <= 0.4,]
 ones = pfw[pfw$urban >= 0.6,]
 
 #----Running a glm for NON-URBAN----
-glm.nU = glmmadmb(maxFlock~effortDays+effortHours+lat+long+yr+(1|locID), data=zeros,
-                  zeroInflation = T, family="nbinom")
-confint(object = glm.nU, parm = "yr",level=0.95)
-#         2.5 %      97.5 %
-# yr -0.0438829 -0.01430744
+glm.nU = glmmadmb(pa~effortDays+effortHours+lat+long+yr+(1|locID), data=zeros,
+                  zeroInflation = F, family="binomial")
 
 #----Running a glm for URBAN----
-glm.U = glmmadmb(maxFlock~effortDays+effortHours+lat+long+yr+(1|locID), data=ones,
-                 zeroInflation = T, family="nbinom")
-confint(object = glm.U, parm = "yr",level=0.95)
+glm.U = glmmadmb(pa~effortDays+effortHours+lat+long+yr+(1|locID), data=ones,
+                 zeroInflation = F, family="binomial")
 
 #----Plotting year coefficients----
 df.nU = data.frame(confint(object = glm.nU, parm = "yr",level=0.95))
@@ -60,19 +56,19 @@ df = df[,c(1,4,2,3)]
 colnames(df) = c("lower","coef","upper","group")
 
 ggplot(df, aes(as.factor(group), coef)) + 
-  theme_classic() + ylim(-0.125,0.005) +
+  theme_classic() +
   ggtitle("Comparison of Regression Coefficients",
-          "American Crow abundance trend - Northeast U.S.") +
+          "American Crow percent reporting - Northeast U.S.") +
   theme(plot.title = element_text(hjust = 0.5, face = "bold"), 
         plot.subtitle = element_text(hjust = 0.5, face="italic")) +
   labs(y = "Coefficient for Year", x = "Habitat") +
   geom_hline(yintercept = 0, linetype="dashed", color="gray") +
   geom_label(label=c("No Change",""), color = "gray",
-             nudge_y = 0.0295, nudge_x = 0.51, label.size=NA, ) +
+             nudge_y = 0.0377, nudge_x = 0.51, label.size=NA, ) +
   geom_point(color=c("#00BFC4","#F8766D"), lwd=2) + 
   geom_errorbar(aes(ymin=lower, ymax=upper), lwd = 1.075,
                 width=0.125, color=c("#00BFC4","#F8766D"))
-
+beep(10)
 #----Exploring models----
 summary(glm.nU) # beta and p vals
 summary(glm.U)
