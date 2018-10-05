@@ -14,7 +14,7 @@ set.seed(4797)
 pfw = read.csv('~/WNV F18/PFW_amecro_zerofill_landcover.csv')
 
 # Subsetting for states
-states = c("NY", "PA", "NJ", "CT", "RI", "MA")
+states = c("ME", "NH", "VT", "MA", "RI", "CT", "NY", "PA", "NJ")
 pfw = pfw[pfw$state %in% states,]
 
 # Subsetting for years
@@ -37,8 +37,10 @@ jags_rural <- with(rural, list(
   Days = effortDays, 
   #Lat = lat,
   #Long = long,
-  #LocID = locID,
-  N = length(maxFlock)))
+  site = locID,
+  N = length(maxFlock),
+  Nsites = length(levels(as.factor(rural$locID)))
+  ))
 
 #----Converting data for jags----
 jags_urban <- with(urban, list(
@@ -48,8 +50,10 @@ jags_urban <- with(urban, list(
   Days = effortDays, 
   #Lat = lat, 
   #Long = long,
-  #LocID = locID,
-  N = length(maxFlock)))
+  site = locID,
+  N = length(maxFlock),
+  Nsites = length(levels(as.factor(rural$locID)))
+  ))
 
 
 #----Rural Bayesian Model configuration---
@@ -63,10 +67,17 @@ lm_rural <- function(){
   r.sigma ~ dunif(0, 100) # standard deviation
   r.tau <- 1 / (r.sigma * r.sigma) # sigma^2 doesn't work in JAGS
   
+  # Mixed effects priors
+  r.sigma_a ~ dunif(0, 100)
+  r.tau_a <- 1 / (r.sigma_a * r.sigma_a) # convert to precision
+  for (j in 1:Nsites){
+    r.a[j] ~ dnorm(0, r.tau_a) # random intercept for each site
+  }
+  
   # Model structure
   for (i in 1:N){
     Count[i] ~ dnorm(r.mu[i], r.tau) # tau is precision (1 / variance)
-    r.mu[i] <- r.alpha + r.beta1*Year[i] + r.beta2*Hours[i] + r.beta3*Days[i]
+    r.mu[i] <- r.alpha + r.beta1*Year[i] + r.beta2*Hours[i] + r.beta3*Days[i] + r.a[site[i]]
   }
 }
 
@@ -81,10 +92,17 @@ lm_urban <- function(){
   u.sigma ~ dunif(0, 100) # standard deviation
   u.tau <- 1 / (u.sigma * u.sigma) # sigma^2 doesn't work in JAGS
   
+  # Mixed effects priors
+  u.sigma_a ~ dunif(0, 100)
+  u.tau_a <- 1 / (u.sigma_a * u.sigma_a) # convert to precision
+  for (j in 1:Nsites){
+    u.a[j] ~ dnorm(0, u.tau_a) # random intercept for each site
+  }
+  
   # Model structure
   for (i in 1:N){
     Count[i] ~ dnorm(u.mu[i], u.tau) # tau is precision (1 / variance)
-    u.mu[i] <- u.alpha + u.beta1*Year[i] + u.beta2*Hours[i] + u.beta3*Days[i]
+    u.mu[i] <- u.alpha + u.beta1*Year[i] + u.beta2*Hours[i] + u.beta3*Days[i] + u.a[site[i]]
   }
   
   # Calculating the difference between year betas
@@ -93,16 +111,18 @@ lm_urban <- function(){
 
 #----Initial values----
 r.init_values <- function(){
-  list(r.alpha = rnorm(1), r.beta1 = rnorm(1), r.beta2 = rnorm(1), r.beta3 = rnorm(1), r.sigma = runif(1))
+  list(r.alpha = rnorm(1), r.beta1 = rnorm(1), r.beta2 = rnorm(1), r.beta3 = rnorm(1), r.sigma = runif(1),
+       r.sigma_a = runif(1))
 }
 
 u.init_values <- function(){
-  list(u.alpha = rnorm(1), u.beta1 = rnorm(1), u.beta2 = rnorm(1), u.beta3 = rnorm(1), u.sigma = runif(1))
+  list(u.alpha = rnorm(1), u.beta1 = rnorm(1), u.beta2 = rnorm(1), u.beta3 = rnorm(1), u.sigma = runif(1),
+       u.sigma_a = runif(1))
 }
 
 #----Parameters to save----
-r.params <- c("r.alpha", "r.beta1", "r.beta2", "r.beta3", "r.sigma")
-u.params <- c("u.alpha", "u.beta1", "u.beta2", "u.beta3", "u.sigma")
+r.params <- c("r.alpha", "r.beta1", "r.beta2", "r.beta3", "r.sigma", "r.sigma_a")
+u.params <- c("u.alpha", "u.beta1", "u.beta2", "u.beta3", "u.sigma", "u.sigma_a")
 
 #----Fitting the bayesian models----
 fit_rural <- jags(data = jags_rural, inits = r.init_values, parameters.to.save = r.params, model.file = lm_rural,
@@ -131,7 +151,7 @@ df = data.frame(beta = c(fit_rural$BUGSoutput$sims.list$r.beta1, fit_urban$BUGSo
 
 ggplot(df, aes(x=beta, fill=habitat, color=habitat)) +
   theme_dark() + labs(x="Beta Estimates", y = "Frequency",
-                         title = "Comparison of Beta Distributions for Year") +
+                         title = "Comparison of Posterior Beta Distributions for Year") +
   theme(plot.title = element_text(hjust = 0.5, face="bold", size=17),
         panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_rect(fill = "white")) +
