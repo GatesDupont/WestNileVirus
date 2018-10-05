@@ -4,6 +4,7 @@
 
 #----Loading bayesian package----
 library(R2jags)
+library(ggplot2)
 
 #------Setting seed for reproducibility----
 set.seed(4797)
@@ -123,14 +124,19 @@ plot(r_mcmc, mfrow=c(3,2))
 u_mcmc <- as.mcmc(fit_urban)
 plot(u_mcmc)
 
-#----Plotting the distribution of the year betas----
-plot(density(fit_rural$BUGSoutput$sims.list$r.beta1), 
-     main = "Beta Distribution for Year", col="Red", lwd=2,
-     frame.plot=F, xlim = c(-0.033,0.017))
-lines(density(fit_urban$BUGSoutput$sims.list$u.beta1), col="Blue", lwd=2)
-abline(v=0, lty=2, col="gray", lwd=0.75)
-legend("topright", lty = c(1,1), lwd=c(2,2), col = c("Red", "blue"), legend = c("Rural", "Urban"))
+#----ggplot2 year beta distributions----
+df = data.frame(beta = c(fit_rural$BUGSoutput$sims.list$r.beta1, fit_urban$BUGSoutput$sims.list$u.beta1),
+                habitat = c(rep("rural", length(fit_rural$BUGSoutput$sims.list$r.beta1)),
+                            rep("urban", length(fit_urban$BUGSoutput$sims.list$u.beta1))))
 
-#plot(density(fit_urban$BUGSoutput$sims.list$diff_year_beta), main = "Beta Distribution for Year - Difference")
-# Couldn't get this to work quite correctly, tried putting it in the lm_urban
-# as shown above, but it didn't recognize r.beta2.
+ggplot(df, aes(x=beta, fill=habitat, color=habitat)) +
+  theme_dark() + labs(x="Beta Estimates", y = "Frequency",
+                         title = "Comparison of Beta Distributions for Year") +
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=17),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white")) +
+  geom_vline(aes(xintercept=0), linetype="dashed", color = "gray", size=1.2) +
+  geom_vline(aes(xintercept=fit_rural$BUGSoutput$mean$r.beta1), linetype="solid", color = "blue", size=1.2) +
+  geom_vline(aes(xintercept=fit_urban$BUGSoutput$mean$u.beta1), linetype="solid", color = "red", size=1.2) +
+  geom_density(alpha=0.25, size=1.2) +
+  scale_color_manual(values = c("blue", "red")) +  scale_fill_manual(values = c("blue", "red"))
