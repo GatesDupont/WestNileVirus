@@ -90,3 +90,19 @@ for(i in 2:50){
 }
 points(as.numeric(it.avg), col="blue", pch=20, cex=2)
 
+#----Calculating confidence intervals----
+ints = vector("list", 23)
+for(i in 1:23){
+  ints[[i]] = quantile(test1[,i], probs=c(0.025, 0.975))
+}
+
+#----Aggregating plot data----
+final = data.frame(yr=1996:2018, avg = it.avg, as.data.frame(do.call(rbind, ints)))
+colnames(final)[3:4] = c("L", "U")
+
+#----Plotting with confidence intervals----
+require(plotrix)
+plot(avg~yr, final, pch=20)
+plotCI(x=final$yr, y=final$avg, ui=final$U, li=final$L,
+       pch=20, ylab="Relative Abundance", xlab="Year",
+       main="American Crows, Northeast US", bty="n")
