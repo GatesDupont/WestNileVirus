@@ -13,13 +13,6 @@ pfw = pfw[,-1]
 #----Number of base year records----
 base = as.numeric(table(pfw$yr)[1])
 
-#----1000 samples----
-sets = vector("list", 1000)
-for(i in 1:1000){
-  set.seed(i) # Set iterative seed for reproducibility
-  sets[[i]] #
-}
-
 #----Splitting by year----
 pfw.split = pfw %>%
   split(pfw$yr)
@@ -97,7 +90,7 @@ points(as.numeric(it.avg)~c(1996:2018), col="white", pch=20, cex=2)
 #----Calculating confidence intervals----
 ints = vector("list", 23)
 for(i in 1:23){
-  ints[[i]] = quantile(test1[,i], probs=c(0.025, 0.975))
+  ints[[i]] = quantile(takes.df[,i], probs=c(0.025, 0.975))
 }
 
 #----Aggregating plot data----
