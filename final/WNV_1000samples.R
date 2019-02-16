@@ -7,11 +7,12 @@ library(plyr)
 library(dplyr)
 
 #----Load clean data----
-pfw = read.csv("~/WNV SP18/WNV_clean.csv")
+pfw = read.csv("~/WNV SP19/PFW_amecro_clean_geocode.csv")
 pfw = pfw[,-1]
 
 #----Number of base year records----
 base = as.numeric(table(pfw$yr)[1])
+base = 2000
 
 #----Splitting by year----
 pfw.split = pfw %>%
@@ -43,19 +44,21 @@ fits = vector("list", 1000)
 traj.data = vector("list", 1000)
 
 takes = foreach(i=1:1000, .packages=c("mgcv")) %dopar% {
-#for(i in 1){    
+  #for(i in 1){    
   #----ZI-GAM----
   models[[i]] = gam(list(
     maxFlock ~ 
       effortHours +
       effortDays +
+      s(day, k=5) +
       s(yr, k=11) +
-      s(lat,long, k=5),
+      s(lat,long),
     ~
       effortHours +
       effortDays +
+      s(day, k=5) +
       s(yr, k=11) +
-      s(lat,long, k=5)),
+      s(lat,long)),
     family = ziplss,
     gamma = 1.4,
     data = sets[[i]])
