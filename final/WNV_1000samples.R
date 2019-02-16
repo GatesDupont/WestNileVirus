@@ -68,6 +68,7 @@ takes = foreach(i=1:1000, .packages=c("mgcv")) %dopar% {
     yr = 1996:2018,
     lat = mean(sets[[i]]$lat),
     long = mean(sets[[i]]$long),
+    day = 1,
     effortDays = mean(sets[[i]]$effortDays),
     effortHours = mean(sets[[i]]$effortHours))
   
