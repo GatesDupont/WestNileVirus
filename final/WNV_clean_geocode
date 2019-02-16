@@ -14,19 +14,19 @@ library(stringr)
 library(rgeos)
 
 #----Species input for files----
-species = "sonspa"
+species = "blujay"
 
 #----Setup----
 setwd("~/WNV SP19")
 
 #----Importing PFW data----
 if(T){
-  raw.pfw = read.csv(paste0("PFW_",species,".csv"))
-  # rm(list=setdiff(ls(), "raw.pfw"))
+  pfw.raw = read.csv(paste0("PFW_",species,".csv"))
+  # rm(list=setdiff(ls(), "pfw.raw"))
 }
 
 #----Converting to duplicate data for preservation----
-rawData = raw.pfw
+pfw.ne = pfw.raw
 
 #----Importing geocode locations----
 ref.locs = read.csv("pfwfinal00.csv")
@@ -39,38 +39,56 @@ ref.locs = droplevels(ref.locs[!(ref.locs$LOC_METHOD == "postal"),])
 
 #----Selecting states----
 states = c('ME', 'NH', 'VT', 'MA', 'RI', 'CT', 'NY', 'PA', 'NJ')
-rawData = rawData[rawData$StatProv %in% states,]
+pfw.ne = pfw.ne[pfw.ne$StatProv %in% states,]
 
 #----Preparing to merge with geocoded locs----
-rawData$season = as.numeric(str_sub(rawData$FW_Year, start= -4))
-rawData$lat = NA; rawData$long = NA
+pfw.ne$season = as.integer(str_sub(pfw.ne$FW_Year, start= -4))
+pfw.ne$lat = NA; pfw.ne$long = NA
+plot(as.numeric(table(pfw.ne$FW_Year))[-1], type="l", ylim = c(0, 43000)) # check
 
 #----Merging geocoded locations----
-geo.pfw = merge.data.frame(rawData, ref.locs, by = "ID", all.x = T)
+u.locs = ref.locs %>% 
+  distinct(ID, FW_YEAR, .keep_all = T)
+geo.pfw = merge.data.frame(x = pfw.ne, y = u.locs,
+                           by.x = c("ID", "season") , by.y = c("ID", "FW_YEAR"),
+                           all.x = T)
+lines(as.numeric(table(geo.pfw$season)), col="red") # check
 
 #----Keeping and combining good coords----
+c.zip = str_detect(str_to_lower(geo.pfw$ENTRY_TECHNIQUE), "post")==F # entry technique didnt use zipcode
+c.coord = !is.na(geo.pfw$LATITUDE.y) # coordinates aren't missing
+c.9699 = geo.pfw$season %in% c(1996:1999) # years 1996-1999
+c.0008 = geo.pfw$season %in% c(2000:2008) # years 2000-2008
+c.0918 = geo.pfw$season %in% c(2009:2018) # years 2009-2018
 
-# Removing zipcode-only locs
-geo.pfw = geo.pfw[!((str_detect(str_to_lower(geo.pfw$ENTRY_TECHNIQUE), "post") == TRUE) &is.na(geo.pfw$LATITUDE.y)),]
+# Keep rows if...
+c1 = c.9699 # the season is between 1996 and 1999
+c2 = c.0008 & c.coord # the season is between 2000 and 2008
+                              # without new coordinates missing
+c3 = c.0918 & c.zip # the season was after 2008
+                    # and the location wasn't submitted by zipcode
+
+geo.pfw = geo.pfw[(c1 | c2 | c3),]
+lines(as.numeric(table(geo.pfw$season)), col="black") # check
 
 # Adding good locs to new lat/long columns
 geo.pfw$LATITUDE.y[is.na(geo.pfw$LATITUDE.y)] = geo.pfw$LATITUDE.x[is.na(geo.pfw$LATITUDE.y)]
 geo.pfw$LONGITUDE.y[is.na(geo.pfw$LONGITUDE.y)] = geo.pfw$LONGITUDE.x[is.na(geo.pfw$LONGITUDE.y)]
 
 #----Formatting effort----
-rawData = geo.pfw
-rawData[rawData==""] = NA # blank to NA
-rawData = rawData %>%
-  filter(complete.cases(.[,c(1, 43:44, 36, 28:29, 25, 11:15)])) %>% # remove NAs 1, 36, 25, 43:44, 15, 29
-  mutate(effortDaysNumerical = rowSums(.[,11:14])) %>% # Summing half days
+pfw.ne = geo.pfw
+pfw.ne[pfw.ne==""] = NA # blank to NA
+pfw.ne = pfw.ne %>%
+  filter(complete.cases(.[,c(1:2, 12:16, 26, 29:30, 42:43)])) %>% # remove NAs 1, 36, 25, 43:44, 15, 29
+  mutate(effortDaysNumerical = rowSums(.[,12:15])) %>% # Summing half days
   mutate(obshrs=
            recode(EFFORT_HRS_ATLEAST,
                   "0.001"=1,"1"=2,"4"=3,"4.001"=3,"8.001"=4)) %>% # recoding effort
-  dplyr::select(lat=43, long=44, yr=36, day=28, maxFlock=25,
-                effortHours=48, effortDays=47,locID=1) %>% # selecting relevant data
+  dplyr::select(lat=42, long=43, yr=2, day=29, maxFlock=26,
+                effortHours=47, effortDays=46,locID=1) %>% # selecting relevant data
   droplevels() # check this
 
-dfEffHD=droplevels(rawData)
+dfEffHD=droplevels(pfw.ne)
 
 #----Keeping only points from within region of interest----
 
@@ -88,7 +106,8 @@ st.contour = spTransform(x=st.contour, CRSobj=CRS("+init=epsg:32662"))
 st.contour.buffer = gBuffer(st.contour, width = 10000) 
 st.contour = spTransform(st.contour.buffer, CRSobj=CRS("+init=epsg:4326"))
 
-# Converting pfw data to spcoordinates(dfEffHD)= ~long+lat # converting from f to spdf
+# Converting pfw data to sp
+coordinates(dfEffHD)= ~long+lat # converting from f to spdf
 crs(dfEffHD) = CRS("+init=epsg:4326") # adding crs format
 
 # Selecting only points in the polygon (this takes a while)
