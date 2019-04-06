@@ -2,6 +2,8 @@
 # 2019         #
 # # # # # # # #
 
+"Bootstrapping 1000 ZI-GAMs"
+
 library(mgcv)
 library(plyr)
 library(dplyr)
