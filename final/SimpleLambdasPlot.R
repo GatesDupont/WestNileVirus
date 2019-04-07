@@ -1,14 +1,27 @@
 library(ggplot2)
 library(ggpubr)
 
-growth = data.frame(
-  amcr = lambda_amcr_0501,
-  blja = lambda_blja_0502,
-  tuti = lambda_tuti_0401,
-  wbnu = lambda_wbnu_0300,
-  sosp = lambda_sosp_0301,
-  modo = lambda_modo_0401
-)
+period = 1
+
+if(period == 1){
+  growth = data.frame(
+    amcr = lambda_amcr_0501,
+    blja = lambda_blja_0502,
+    tuti = lambda_tuti_0401,
+    wbnu = lambda_wbnu_0300,
+    sosp = lambda_sosp_0301,
+    modo = lambda_modo_0401
+  )
+}else{
+  growth = data.frame(
+    amcr = lambda_amcr_1408,
+    blja = lambda_blja_1208,
+    tuti = lambda_tuti_1308,
+    wbnu = lambda_wbnu_0907,
+    sosp = lambda_sosp_1109,
+    modo = lambda_modo_1107
+  )
+}
 
 quants = t(data.frame(
   amcr = quantile(growth$amcr, probs=c(0.025, 0.975)),
