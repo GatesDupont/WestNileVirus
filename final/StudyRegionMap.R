@@ -3,11 +3,11 @@ library(sf)
 library(ggplot2)
 library(rnaturalearth)
 
-world <- ne_countries(scale = "medium", returnclass = "sf")
-states <- st_as_sf(map("state", plot = FALSE, fill = TRUE))
+world = ne_countries(scale = "medium", returnclass = "sf")
+states = st_as_sf(map("state", plot = FALSE, fill = TRUE))
 
-selected.states = c("massachusetts", "new hampshire", "vermont", "new york", "rhode island", 
-            "connecticut", "new jersey", "maine", "pennsylvania")
+selected.states = c("massachusetts", "new hampshire", "vermont", "new york", "rhode island",
+                    "connecticut", "new jersey", "maine", "pennsylvania")
 
 states$group = "gray91"
 states[states$ID %in% selected.states,]$group = "lightblue"
