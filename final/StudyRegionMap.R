@@ -9,7 +9,7 @@ states = st_as_sf(map("state", plot = FALSE, fill = TRUE))
 selected.states = c("massachusetts", "new hampshire", "vermont", "new york", "rhode island",
                     "connecticut", "new jersey", "maine", "pennsylvania")
 
-states$group = "gray91"
+states$group = NA
 states[states$ID %in% selected.states,]$group = "lightblue"
 
 ggplot(data = world) +
