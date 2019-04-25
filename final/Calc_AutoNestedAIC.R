@@ -8,11 +8,11 @@ library(tidyr)
 library(stringr)
 library(qpcR)
 
+# Train on sets[[1]], 2000 obs/yr for 23 yrs (46000 obs)
+
 df$dummy = 1
 
 #----Making all possible combinations of full model----
-
-# hours, days, years, latlon
 count = expand.grid(count_days    = c("effortDays", "dummy"),
                     count_hours   = c("effortHours", "dummy"),
                     count_years   = c("s(yr, k=11)", "dummy"),
@@ -72,7 +72,6 @@ cl = makeCluster(cores[1]-1)
 registerDoParallel(cl)
 
 models = foreach(i=1:256, .packages=c("mgcv")) %dopar% {
-  #for(i in 1){    
   assign(model.names[[i]], 
          gam(formula = formulas[[i]], family = ziplss, gamma=1.4, data=df))
 }
@@ -85,11 +84,13 @@ for(i in 1:256){
 }
 
 #----AIC Model Comparison table----
-models.list = vector("list", 256)
-for(i in 1:256){
-  models.list[[i]] = AIC(get(model.names[[i]]))
-}
+aic.call = paste0("`", model.names, "`") %>%
+  str_flatten(., ", ") %>%
+  paste0("AIC(", ., ")") %>%
+  eval(parse(text=aic.call))
+models.aic = eval(parse(text=aic.call))
 models.weights = akaike.weights(models.aic$AIC)
 models.aictab = cbind(models.aic,models.weights)
 models.aictab=models.aictab[order(models.aictab["deltaAIC"]),]
+models.aictab$weights = round(models.aictab$weights, 4)
 View(models.aictab)
