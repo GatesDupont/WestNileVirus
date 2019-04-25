@@ -27,7 +27,7 @@ detect = expand.grid(
   detect_latlon  = c("s(lat, long)", "dummy")
 )
 
-formulas = vector("list", 256)
+model.formulas = vector("list", 256)
 k = 1
 for (i in 1:length(count[, 1])) {
   a = as.character(unlist(count[i, ])) %>%
@@ -37,7 +37,7 @@ for (i in 1:length(count[, 1])) {
     b = as.character(unlist(detect[j, ])) %>%
       str_flatten(collapse = " + ")
     
-    formulas[[k]] = list(formula(str_glue("maxFlock", " ~ ", a)),
+    model.formulas[[k]] = list(formula(str_glue("maxFlock", " ~ ", a)),
                          formula(str_glue(" ~ ", b)))
     k = k + 1
   }
@@ -79,10 +79,10 @@ cores = detectCores()
 cl = makeCluster(cores[1] - 1)
 registerDoParallel(cl)
 
-models = foreach(i = 1:256, .packages = c("mgcv")) %dopar% {
+model.fits = foreach(i = 1:256, .packages = c("mgcv")) %dopar% {
   assign(model.names[[i]],
          gam(
-           formula = formulas[[i]],
+           formula = model.formulas[[i]],
            family = ziplss,
            gamma = 1.4,
            data = df
@@ -93,7 +93,7 @@ stopCluster(cl)
 #----Assigning Names----
 for (i in 1:256) {
   assign(model.names[[i]],
-         models[[i]])
+         model.fits[[i]])
 }
 
 #----AIC Model Comparison table----
