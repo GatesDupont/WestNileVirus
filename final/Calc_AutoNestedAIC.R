@@ -6,6 +6,9 @@
 library(mgcv)
 library(tidyr)
 library(stringr)
+library(qpcR)
+
+df$dummy = 1
 
 #----Making all possible combinations of full model----
 
@@ -20,7 +23,7 @@ detect = expand.grid(detect_days    = c("effortDays", "dummy"),
                      detect_years   = c("s(yr, k=11)", "dummy"),
                      detect_latlon  = c("s(lat, long)", "dummy"))
 
-formulas = vector("list", 16*16)
+formulas = vector("list", 256)
 k = 1
 for (i in 1:length(count[,1])) {
   a = as.character(unlist(count[i,])) %>%
@@ -47,7 +50,7 @@ detect.names = expand.grid(detect_days    = c("D", "."),
                            detect_years   = c("Y", "."),
                            detect_latlon  = c("L", "."))
 
-model.names = vector("list", 16*16)
+model.names = vector("list", 256)
 k = 1
 for (i in 1:length(count.names[,1])) {
   a = as.character(unlist(count.names[i,]))
@@ -57,7 +60,7 @@ for (i in 1:length(count.names[,1])) {
     b = as.character(unlist(detect.names[j,]))
     b = paste(b, collapse = "")
     
-    model.names[[k]] = str_glue("N(", a, ")", "Phi(", b, ")")
+    model.names[[k]] = paste(str_glue("N(", a, ")", "Phi(", b, ")"))
     k = k + 1
   }
 }
@@ -68,8 +71,25 @@ cores = detectCores()
 cl = makeCluster(cores[1]-1)
 registerDoParallel(cl)
 
-models = foreach(i=1:2, .packages=c("mgcv")) %dopar% {
+models = foreach(i=1:256, .packages=c("mgcv")) %dopar% {
   #for(i in 1){    
   assign(model.names[[i]], 
          gam(formula = formulas[[i]], family = ziplss, gamma=1.4, data=df))
 }
+stopCluster(cl)
+
+#----Assigning Names----
+for(i in 1:256){
+  assign(model.names[[i]],
+         models[[i]])
+}
+
+#----AIC Model Comparison table----
+models.list = vector("list", 256)
+for(i in 1:256){
+  models.list[[i]] = AIC(get(model.names[[i]]))
+}
+models.weights = akaike.weights(models.aic$AIC)
+models.aictab = cbind(models.aic,models.weights)
+models.aictab=models.aictab[order(models.aictab["deltaAIC"]),]
+View(models.aictab)
