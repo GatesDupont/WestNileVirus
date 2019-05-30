@@ -99,8 +99,7 @@ for (i in 1:256) {
 #----AIC Model Comparison table----
 aic.call = paste0("`", model.names, "`") %>%
   str_flatten(., ", ") %>%
-  paste0("AIC(", ., ")") %>%
-  eval(parse(text = aic.call))
+  paste0("AIC(", ., ")")
 models.aic = eval(parse(text = aic.call))
 models.weights = akaike.weights(models.aic$AIC)
 models.aictab = cbind(models.aic, models.weights)
